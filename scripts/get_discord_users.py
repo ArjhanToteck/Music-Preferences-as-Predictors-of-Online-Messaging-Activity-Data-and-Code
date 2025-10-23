@@ -25,7 +25,13 @@ class DiscordClient(discord.Client):
 		users = await scrape_users(guild)
 
 		# get random sample of users
-		sample = select_random_user_sample(users, USER_SAMPLE_SIZE_PER_SERVER)
+		spotify_sample = select_random_user_sample(users["spotify_stratum"], USER_SAMPLE_SIZE_PER_SERVER)
+		non_spotify_sample = select_random_user_sample(users["non_spotify_stratum"], USER_SAMPLE_SIZE_PER_SERVER)
+		
+		sample = {
+			"spotify_sample": spotify_sample,
+			"non_spotify_sample": non_spotify_sample
+		}
 
 		# save sample to json
 		with open("data/users.json", "w", encoding="utf-8") as f:
@@ -34,7 +40,10 @@ class DiscordClient(discord.Client):
 		print("User sample data saved to data/users.json")
 
 async def scrape_users(guild):
-	users = {}
+	users = {
+		"spotify_stratum": {},
+		"non_spotify_stratum": {},
+	}
 
 	# get channels list
 	channels = await guild.fetch_channels()
@@ -56,11 +65,22 @@ async def scrape_users(guild):
 			# skip bot messages
 			if author.bot:
 				continue
+			
+			# check if already in spotify stratum
+			if author.id in users["spotify_stratum"]:
+				# add new message to list
+				users["spotify_stratum"][author.id]["messages"].append(message)
+
+			# check if already in non spotify stratum
+			elif author.id in users["non_spotify_stratum"]:
+				# add new message to list
+				users["non_spotify_stratum"][author.id]["messages"].append(message)
+
 
 			# new user found
-			if author.id not in users:
+			else:
 				# get profile and spotify connection
-				spotifyUrl = None
+				spotify_url = None
 
 				try:
 					profile = await author.profile()
@@ -70,19 +90,22 @@ async def scrape_users(guild):
 						# check if spotify
 						if connection.type == ConnectionType.spotify:
 							# save url
-							spotifyUrl = connection.url
+							spotify_url = connection.url
 				except:
 					print("failed to fetch profile")
 
 				# create object for user to store messages and user data
-				users[author.id] = {
+				author_data = {
 					"user": author,
 					"messages": [message],
-					"spotifyUrl": spotifyUrl
+					"spotifyUrl": spotify_url
 				}
-			else:
-				# add new message to list
-				users[author.id]["messages"].append(message)
+
+				# save user data in appropriate stratum
+				if spotify_url == None:
+					users["non_spotify_stratum"][author.id] = author_data
+				else :
+					users["spotify_stratum"][author.id] = author_data
 
 	return users
 
