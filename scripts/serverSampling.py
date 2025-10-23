@@ -1,5 +1,6 @@
 import requests
 import random
+import json
 
 # how many servers to identify as candidates
 # then, a number of them will randomly be selected to be the actual sample
@@ -17,7 +18,11 @@ def main():
     sample = select_random_sample_from_candidate_pool(candidate_pool, SAMPLE_SIZE)
     print(f"Created sample of {SAMPLE_SIZE} random servers.")
 
-    print(sample)
+    # save sample to json
+    with open("data/servers.json", "w", encoding="utf-8") as f:
+        json.dump(sample, f, ensure_ascii=False, indent=2)
+        
+    print("Server sample data saved to data/servers.json")
 
 def get_candidate_pool(size):
     # format request query
