@@ -5,33 +5,18 @@ const CANDIDATE_POOL_SIZE = 100;
 // how many servers to randomly include in the sample from the candidate pool
 const SAMPLE_SIZE = 5;
 
-// a seed can be used for reproducibility in the random sampling
-const SAMPLING_SEED = 2058934;
-
 main();
 
 async function main() {
-	// initialize mulberry32 with seed
-	const random = mulberry32(SAMPLING_SEED);
-
 	// get candidate pool
 	const candidatePool = await getCandidatePool(CANDIDATE_POOL_SIZE);
 	console.log(`Created candidate pool from the ${CANDIDATE_POOL_SIZE} top servers.`);
 
 	// get sample
-	const sample = selectRandomSampleFromCandidatePool(candidatePool, SAMPLE_SIZE, random);
+	const sample = selectRandomSampleFromCandidatePool(candidatePool, SAMPLE_SIZE);
 	console.log(`Created sample of ${SAMPLE_SIZE} random servers.`);
 
 	console.log(sample);
-}
-
-function mulberry32(a) {
-	return function () {
-		let t = a += 0x6D2B79F5;
-		t = Math.imul(t ^ t >>> 15, t | 1);
-		t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-		return ((t ^ t >>> 14) >>> 0) / 4294967296;
-	}
 }
 
 async function getCandidatePool(size) {
@@ -135,7 +120,7 @@ function selectRandomSampleFromCandidatePool(candidatePool, sampleSize, random) 
 
 	for (let i = 0; i < sampleSize && copy.length > 0; i++) {
 		// get random server
-		const index = Math.floor(random() * copy.length);
+		const index = Math.floor(Math.random() * copy.length);
 
 		// remove from candidates and add to sample
 		sample.push(copy.splice(index, 1)[0]);
