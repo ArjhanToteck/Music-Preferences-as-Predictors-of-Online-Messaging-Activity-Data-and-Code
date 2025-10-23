@@ -11,7 +11,7 @@ load_dotenv()
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = int(os.getenv("GUILD_ID"))
 CHANNEL_HISTORY_LIMIT = int(os.getenv("CHANNEL_HISTORY_LIMIT"))
-USER_SAMPLE_SIZE_PER_SERVER = int(os.getenv("USER_SAMPLE_SIZE_PER_SERVER"))
+USER_STRATUM_SIZE = int(os.getenv("USER_STRATUM_SIZE"))
 
 class DiscordClient(discord.Client):
 	async def on_ready(self):
@@ -25,8 +25,8 @@ class DiscordClient(discord.Client):
 		users = await scrape_users(guild)
 
 		# get random sample of users
-		spotify_sample = select_random_user_sample(users["spotify_stratum"], USER_SAMPLE_SIZE_PER_SERVER)
-		non_spotify_sample = select_random_user_sample(users["non_spotify_stratum"], USER_SAMPLE_SIZE_PER_SERVER)
+		spotify_sample = select_random_user_sample(users["spotify_stratum"], USER_STRATUM_SIZE)
+		non_spotify_sample = select_random_user_sample(users["non_spotify_stratum"], USER_STRATUM_SIZE)
 		
 		sample = {
 			"spotify_sample": spotify_sample,
