@@ -3,7 +3,7 @@ import os
 import json
 from dotenv import load_dotenv
 import discord
-from discord import Guild, TextChannel
+from discord import ConnectionType
 
 # load env variables
 load_dotenv()
@@ -51,16 +51,38 @@ async def scrape_users(guild):
 
 		# get message history
 		async for message in channel.history(limit=CHANNEL_HISTORY_LIMIT):
+			author = message.author
+
+			# skip bot messages
+			if author.bot:
+				continue
+
 			# new user found
-			if message.author.id not in users:
+			if author.id not in users:
+				# get profile and spotify connection
+				spotifyUrl = None
+
+				try:
+					profile = await author.profile()
+					connections = profile.connections
+
+					for connection in connections:
+						# check if spotify
+						if connection.type == ConnectionType.spotify:
+							# save url
+							spotifyUrl = connection.url
+				except:
+					print("failed to fetch profile")
+
 				# create object for user to store messages and user data
-				users[message.author.id] = {
-					"user": message.author,
-					"messages": [message]
+				users[author.id] = {
+					"user": author,
+					"messages": [message],
+					"spotifyUrl": spotifyUrl
 				}
 			else:
 				# add new message to list
-				users[message.author.id]["messages"].append(message)
+				users[author.id]["messages"].append(message)
 
 	return users
 
