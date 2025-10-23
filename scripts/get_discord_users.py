@@ -13,13 +13,49 @@ GUILD_ID = int(os.getenv("GUILD_ID"))
 CHANNEL_HISTORY_LIMIT = int(os.getenv("CHANNEL_HISTORY_LIMIT"))
 USER_STRATUM_SIZE = int(os.getenv("USER_STRATUM_SIZE"))
 
+
+def main():
+	client = DiscordClient()
+	client.run(DISCORD_TOKEN)
+
+
 class DiscordClient(discord.Client):
 	async def on_ready(self):
 		print("Logged onto Discord as", self.user)
 
 		# get guild
 		guild = self.get_guild(GUILD_ID)
-		print(guild)
+
+		await self.scrape_all_servers()
+
+
+	async def scrape_all_servers(self):
+		server_samples = []
+
+		# read servers.json
+		with open("data/servers.json", "r") as file:
+			servers = json.load(file)
+
+			for server in servers:
+				# fetch server from id
+				guild_id = int(server["id"])
+				guild = self.get_guild(guild_id)
+
+				# scrape server
+				server_sample = await scrape_server(guild)
+				server_sample["topgg_data"] = server
+
+				server_samples.append(server_sample)
+
+		# save sample to json
+		with open("data/users.json", "w", encoding="utf-8") as f:
+			json.dump(server_samples, f, ensure_ascii=False, indent=2, default=str)
+			
+		print("User sample data saved to data/users.json")
+
+
+async def scrape_server(guild):
+		print(f"Scraping server {guild}")
 
 		# scrape messages and users
 		users = await scrape_users(guild)
@@ -28,16 +64,14 @@ class DiscordClient(discord.Client):
 		spotify_sample = select_random_user_sample(users["spotify_stratum"], USER_STRATUM_SIZE)
 		non_spotify_sample = select_random_user_sample(users["non_spotify_stratum"], USER_STRATUM_SIZE)
 		
-		sample = {
+		server_sample = {
+			"guild": guild,
 			"spotify_sample": spotify_sample,
 			"non_spotify_sample": non_spotify_sample
 		}
 
-		# save sample to json
-		with open("data/users.json", "w", encoding="utf-8") as f:
-			json.dump(sample, f, ensure_ascii=False, indent=2, default=str)
-			
-		print("User sample data saved to data/users.json")
+		return server_sample
+
 
 async def scrape_users(guild):
 	users = {
@@ -49,9 +83,14 @@ async def scrape_users(guild):
 	channels = await guild.fetch_channels()
 
 	# loop through channels
+	# TODO: fix the channel-based message sampling approach
+	# messages should be randomly sampled-server wide or something idfk
 	for channel in channels:
-		# make sure they're readable
-		if not channel.permissions_for(guild.me).read_messages:
+		if len(users["spotify_stratum"]) > 9:
+			break
+
+		# make sure they're writable
+		if not channel.permissions_for(guild.me).send_messages:
 			continue
 
 		# make sure they're text channels
@@ -79,6 +118,8 @@ async def scrape_users(guild):
 
 			# new user found
 			else:
+				print(f"Found user {author.name}")
+
 				# get profile and spotify connection
 				spotify_url = None
 
@@ -91,8 +132,9 @@ async def scrape_users(guild):
 						if connection.type == ConnectionType.spotify:
 							# save url
 							spotify_url = connection.url
+							print("Found Spotify account")
 				except:
-					print("failed to fetch profile")
+					print("Failed to fetch profile")
 
 				# create object for user to store messages and user data
 				author_data = {
@@ -118,5 +160,5 @@ def select_random_user_sample(users, sample_size):
 
 	return sample
 
-client = DiscordClient()
-client.run(DISCORD_TOKEN)
+if __name__ == "__main__":
+    main()
