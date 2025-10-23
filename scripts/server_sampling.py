@@ -2,21 +2,27 @@ import requests
 import random
 import json
 
+import os
+from dotenv import load_dotenv
+
+# load env variables
+load_dotenv()
+
 # how many servers to identify as candidates
 # then, a number of them will randomly be selected to be the actual sample
-CANDIDATE_POOL_SIZE = 100
+SERVER_CANDIDATE_POOL_SIZE = int(os.getenv("SERVER_CANDIDATE_POOL_SIZE"))
 
 # how many servers to randomly include in the sample from the candidate pool
-SAMPLE_SIZE = 5
+SERVER_SAMPLE_SIZE = int(os.getenv("SERVER_SAMPLE_SIZE"))
 
 def main():
     # get candidate pool
-    candidate_pool = get_candidate_pool(CANDIDATE_POOL_SIZE)
-    print(f"Created candidate pool from the {CANDIDATE_POOL_SIZE} top servers.")
+    candidate_pool = get_candidate_pool(SERVER_CANDIDATE_POOL_SIZE)
+    print(f"Created candidate pool from the {SERVER_CANDIDATE_POOL_SIZE} top servers.")
 
     # get sample
-    sample = select_random_sample_from_candidate_pool(candidate_pool, SAMPLE_SIZE)
-    print(f"Created sample of {SAMPLE_SIZE} random servers.")
+    sample = select_random_sample_from_candidate_pool(candidate_pool, SERVER_SAMPLE_SIZE)
+    print(f"Created sample of {SERVER_SAMPLE_SIZE} random servers.")
 
     # save sample to json
     with open("data/servers.json", "w", encoding="utf-8") as f:
