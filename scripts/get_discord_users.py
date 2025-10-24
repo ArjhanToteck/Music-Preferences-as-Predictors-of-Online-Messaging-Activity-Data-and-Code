@@ -108,12 +108,12 @@ async def scrape_users(guild):
 			# check if already in spotify stratum
 			if author.id in users["spotify_stratum"]:
 				# add new message to list
-				users["spotify_stratum"][author.id]["messages"].append(message)
+				users["spotify_stratum"][author.id]["messages"].append(message.content)
 
 			# check if already in non spotify stratum
 			elif author.id in users["non_spotify_stratum"]:
 				# add new message to list
-				users["non_spotify_stratum"][author.id]["messages"].append(message)
+				users["non_spotify_stratum"][author.id]["messages"].append(message.content)
 
 
 			# new user found
@@ -139,7 +139,7 @@ async def scrape_users(guild):
 				# create object for user to store messages and user data
 				author_data = {
 					"user": author,
-					"messages": [message],
+					"messages": [message.content],
 					"spotifyUrl": spotify_url
 				}
 
