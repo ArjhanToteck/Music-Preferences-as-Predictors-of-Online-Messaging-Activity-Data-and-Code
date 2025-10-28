@@ -3,7 +3,9 @@ from dotenv import load_dotenv
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import requests
+import pandas as pd
 import numpy as np
+from scipy.stats import entropy
 
 # load env variables
 load_dotenv()
@@ -24,31 +26,34 @@ def main():
 
 
 def get_user_data(spotifyApi, profile_url):
-	user_stats = {}
-
 	# get playlists
 	playlists = get_playlists(spotifyApi, profile_url)
 	playlist_lengths = []
 
 	# combine all tracks
-	tracks = []
+	all_tracks = []
 	for playlist in playlists:
 		# get tracks from playlist
 		print(f"Getting tracks from playlist {playlist['id']}")
 		playlist_tracks = get_playlist_tracks(spotifyApi, playlist)
 
 		# add to total tracks list
-		tracks.extend(playlist_tracks)
+		all_tracks.extend(playlist_tracks)
 
 		# count playlist length
 		playlist_lengths.append(len(playlist_tracks))
 
 	# get data from combined tracks list
 	print("Getting track stats")
-	user_stats = get_stats_from_tracks(spotifyApi, tracks)
+	user_stats = get_stats_from_tracks(spotifyApi, all_tracks)
+
+	# number of tracks and playlists
+	user_stats["playlists_count"] = len(playlist_lengths)
+	user_stats["tracks_count"] = len(all_tracks)
 
 	# get data on playlist lengths
-	user_stats["playlist_length"] = get_distribution_stats(playlist_lengths)
+	playlist_df = pd.DataFrame({"playlist_length": playlist_lengths})
+	user_stats["playlist_length"] = get_distribution_stats(playlist_df, ["playlist_length"])
 
 	print(user_stats)
 
@@ -85,10 +90,6 @@ def get_playlist_tracks(spotifyApi, playlist):
 
 
 def get_stats_from_tracks(spotifyApi, tracks):
-	tracks_stats = {
-		"track_count": len(tracks)
-	}
-
 	# collect audio features for each track from reccobeats
 	track_ids = [t["track"]["id"] for t in tracks if t["track"]]
 	audio_features = get_audio_features_from_tracks(track_ids)
@@ -99,14 +100,12 @@ def get_stats_from_tracks(spotifyApi, tracks):
 	# combine audio features and metadata
 	all_features = {}
 
-	for f in audio_features:
-		if f and f.get("id"):
-			all_features[f["id"]] = f
-	for m in spotify_metadata:
-		if m and m.get("id"):
-			if m["id"] not in all_features:
-				all_features[m["id"]] = {}
-			all_features[m["id"]].update(m)
+	# create data frames for audio features and metadata
+	audio_df = pd.DataFrame(audio_features)
+	meta_df = pd.DataFrame(spotify_metadata)
+
+	# merge all features on id
+	all_features_df = pd.merge(audio_df, meta_df, on='id', how='outer')
 
 	# properties to analyze
 	properties = [
@@ -125,17 +124,37 @@ def get_stats_from_tracks(spotifyApi, tracks):
 		"release_year"
 	]	
 
-	# loop through properties
-	for property in properties:
-		# get value of property if applicable
-		values = [f[property] for f in all_features.values() if f.get(property) is not None]
+	# get distribution stats
+	tracks_stats = get_distribution_stats(all_features_df, properties)
 
-		if not values:
-			continue
-
-		tracks_stats[property] = get_distribution_stats(values)
+	# include artist entropy stat
+	tracks_stats["artist_entropy"] = get_artist_entropy(tracks)
 
 	return tracks_stats
+
+
+def get_artist_entropy(tracks):
+	# get artists from tracks
+	# (only counts the first artist from a track)
+	artist_names = [t["track"]["artists"][0]["name"] for t in tracks if t["track"] and t["track"]["artists"]]
+	artist_df = pd.DataFrame({"artist_name": artist_names})
+
+	# get counts for each artist
+	artist_counts = artist_df["artist_name"].value_counts(normalize=True)  # normalize to get proportions
+
+	# get raw artist entropy
+	artist_entropy = entropy(artist_counts)
+
+	# normalize
+	unique_artist_count = artist_df["artist_name"].nunique()
+	
+	if unique_artist_count > 1:
+		artist_entropy /= np.log(unique_artist_count)
+	else:
+		# only one artist, no diversity
+		artist_entropy = 0
+
+	return artist_entropy
 
 
 def get_audio_features_from_tracks(track_ids):
@@ -188,20 +207,24 @@ def get_metadata_from_tracks(spotifyApi, track_ids):
 	return spotify_metadata
 
 
-def get_distribution_stats(values):
-		# get shape and spread of property in playlist
-		values_array = np.array(values)
-		return {
-			"q1": np.percentile(values_array, 25),
-			"median": np.median(values_array),
-			"q3": np.percentile(values_array, 75),
-			"range": np.ptp(values_array),
-			"iqr": np.percentile(values_array, 75) - np.percentile(values_array, 25),
-			"std_dev": np.std(values_array),
-			"min": np.min(values_array),
-			"max": np.max(values_array),
-			"mean": np.mean(values_array)
-		}
+def get_distribution_stats(df, properties):
+    def describe_column(col):
+        return {
+            "q1": col.quantile(0.25),
+            "median": col.median(),
+            "q3": col.quantile(0.75),
+            "range": col.max() - col.min(),
+            "iqr": col.quantile(0.75) - col.quantile(0.25),
+            "std_dev": col.std(),
+            "min": col.min(),
+            "max": col.max(),
+            "mean": col.mean(),
+			"skewness": col.skew()
+        }
+
+    # apply to each property
+    stats = {prop: describe_column(df[prop]) for prop in properties if prop in df.columns}
+    return stats
 
 
 if __name__ == "__main__":
