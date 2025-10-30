@@ -99,6 +99,7 @@ async def scrape_users(guild):
 
 		# get message history
 		async for message in channel.history(limit=CHANNEL_HISTORY_LIMIT):
+			# TODO: don't store any identifiable data (except for message content)
 			author = message.author
 
 			# skip bot messages

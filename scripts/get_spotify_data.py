@@ -1,4 +1,6 @@
+import json
 import os
+import time
 from dotenv import load_dotenv
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
@@ -21,11 +23,34 @@ def main():
 		client_secret=SPOTIFY_SECRET,
 	))
 
+	spotify_data = []
+
 	# TODO: do this for all users in users.json automatically
-	get_user_data(spotifyApi, SPOTIFY_PROFILE)
+	with open("data/users.json", "r") as file:
+		servers = json.load(file)
+
+		for server in servers:
+			users = server["spotify_sample"]
+			for id, user in users.items():
+				print("getting data from user " + id)
+				spotify_profile = user["spotifyUrl"]
+				user_data = get_user_data(spotifyApi, spotify_profile)
+
+				# TODO: don't use id bc thats identifiable
+				user_data["id"] = id
+
+				spotify_data.append(user_data)
+
+
+	# save data to json
+	with open("data/spotify_data.json", "w", encoding="utf-8") as f:
+		json.dump(spotify_data, f, ensure_ascii=False, indent=2)
+
 
 
 def get_user_data(spotifyApi, profile_url):
+	user_stats = {}
+
 	# get playlists
 	playlists = get_playlists(spotifyApi, profile_url)
 	playlist_lengths = []
@@ -43,9 +68,11 @@ def get_user_data(spotifyApi, profile_url):
 		# count playlist length
 		playlist_lengths.append(len(playlist_tracks))
 
-	# get data from combined tracks list
-	print("Getting track stats")
-	user_stats = get_stats_from_tracks(spotifyApi, all_tracks)
+	# skip getting track data from profiles without tracks
+	if len(all_tracks) > 0:
+		# get data from combined tracks list
+		print("Getting track stats")
+		user_stats = get_stats_from_tracks(spotifyApi, all_tracks)
 
 	# number of tracks and playlists
 	user_stats["playlists_count"] = len(playlist_lengths)
@@ -55,7 +82,7 @@ def get_user_data(spotifyApi, profile_url):
 	playlist_df = pd.DataFrame({"playlist_length": playlist_lengths})
 	user_stats["playlist_length"] = get_distribution_stats(playlist_df, ["playlist_length"])
 
-	print(user_stats)
+	return user_stats
 
 
 def get_playlists (spotifyApi, profile_url):
@@ -105,7 +132,8 @@ def get_stats_from_tracks(spotifyApi, tracks):
 	meta_df = pd.DataFrame(spotify_metadata)
 
 	# merge all features on id
-	all_features_df = pd.merge(audio_df, meta_df, on='id', how='outer')
+	# it doesn't matter if spotify and reccobeats songs match bc all we need is summary statistics of each individual metric
+	all_features_df = pd.concat([audio_df.reset_index(drop=True), meta_df.reset_index(drop=True)], axis=1)
 
 	# properties to analyze
 	properties = [
@@ -158,27 +186,37 @@ def get_artist_entropy(tracks):
 
 
 def get_audio_features_from_tracks(track_ids):
-	audio_features = []
+    audio_features = []
 
-	for i in range(0, len(track_ids), 40):  # batch in 40s
-		# get string list of next 40 track ids
-		# for some reason they can be None sometimes? maybe local files
-		track_batch = [tid for tid in track_ids[i:i+40] if tid is not None]
+    for i in range(0, len(track_ids), 40):  # batch in 40s
+        # get string list of next 40 track ids
+        # for some reason they can be None sometimes? maybe local files
+        track_batch = [tid for tid in track_ids[i:i+40] if tid is not None]
 
-		ids_batch = ",".join(track_batch)
-		
-		# get audio features
-		url = f"https://api.reccobeats.com/v1/audio-features?ids={ids_batch}"
+        ids_batch = ",".join(track_batch)
 
-		response = requests.get(url)
-		if response.status_code == 200:
-			data = response.json()
-			audio_features.extend(data.get("content", []))
-		else:
-			print(f"https://api.reccobeats.com/v1/audio-features?ids={ids_batch}")
-			print(f"Error fetching batch {i}-{i+len(track_batch)}: {response.status_code}")
+        while True:
+            # get audio features
+            url = f"https://api.reccobeats.com/v1/audio-features?ids={ids_batch}"
+            response = requests.get(url)
 
-	return audio_features
+            if response.status_code == 200:
+                data = response.json()
+                audio_features.extend(data.get("content", []))
+                break  # exit retry loop if successful
+
+            elif response.status_code == 429:
+                # handle rate limit
+                retry_after = int(response.headers.get("Retry-After", 4)) + 1  # default 5 sec and add an extra second in case
+                print(f"Rate limited. Retrying after {retry_after} seconds...")
+                time.sleep(retry_after)
+
+            else:
+                print(f"{url}")
+                print(f"Error fetching batch {i}-{i+len(track_batch)}: {response.status_code}")
+                break  # exit retry loop on other errors
+
+    return audio_features
 
 
 def get_metadata_from_tracks(spotifyApi, track_ids):
@@ -210,17 +248,17 @@ def get_metadata_from_tracks(spotifyApi, track_ids):
 def get_distribution_stats(df, properties):
     def describe_column(col):
         return {
-            "q1": col.quantile(0.25),
-            "median": col.median(),
-            "q3": col.quantile(0.75),
-            "range": col.max() - col.min(),
-            "iqr": col.quantile(0.75) - col.quantile(0.25),
-            "std_dev": col.std(),
-            "min": col.min(),
-            "max": col.max(),
-            "mean": col.mean(),
-			"skewness": col.skew()
-        }
+			"q1": float(col.quantile(0.25)),
+			"median": float(col.median()),
+			"q3": float(col.quantile(0.75)),
+			"range": float(col.max() - col.min()),
+			"iqr": float(col.quantile(0.75) - col.quantile(0.25)),
+			"std_dev": float(col.std()) if not np.isnan(col.std()) else None,
+			"min": float(col.min()),
+			"max": float(col.max()),
+			"mean": float(col.mean()),
+			"skewness": float(col.skew()) if not np.isnan(col.skew()) else None
+		}
 
     # apply to each property
     stats = {prop: describe_column(df[prop]) for prop in properties if prop in df.columns}

@@ -1,3 +1,5 @@
+import json
+import numpy as np
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import textstat
 from profanity_check import predict_prob as predict_profanity_prob
@@ -8,7 +10,29 @@ import pandas as pd
 vaderSentimentAnalyzer = SentimentIntensityAnalyzer()
 
 def main():
-	print(analyze_user(["i fucjkijnhg hate you and want you to die", "I love you; I want you to live!! 😍"]))
+	message_data = []
+
+
+	with open("data/users.json", "r") as file:
+		servers = json.load(file)
+
+		for server in servers:
+			# go through both spotify and non spotify users
+			users = server["spotify_sample"] | server["non_spotify_sample"]
+
+			for id, user in users.items():
+				print("getting data from user " + id)
+				messages = user["messages"]
+				user_data = analyze_user(messages)
+
+				# TODO: don't use id bc thats identifiable
+				user_data["id"] = id
+
+				message_data.append(user_data)
+
+	# save data to json
+	with open("data/messages_data.json", "w", encoding="utf-8") as f:
+		json.dump(message_data, f, ensure_ascii=False, indent=2)
 
 
 def analyze_user(messages):
@@ -39,21 +63,22 @@ def analyze_user(messages):
     for col_name, col in df.items():
         if pd.api.types.is_numeric_dtype(col):
             stats[col_name] = {
-                "q1": col.quantile(0.25),
-                "median": col.median(),
-                "q3": col.quantile(0.75),
-                "range": col.max() - col.min(),
-                "iqr": col.quantile(0.75) - col.quantile(0.25),
-                "std_dev": col.std(),
-                "min": col.min(),
-                "max": col.max(),
-                "mean": col.mean(),
-                "skewness": col.skew(),
-            }
+				"q1": float(col.quantile(0.25)),
+				"median": float(col.median()),
+				"q3": float(col.quantile(0.75)),
+				"range": float(col.max() - col.min()),
+				"iqr": float(col.quantile(0.75) - col.quantile(0.25)),
+				"std_dev": float(col.std()) if not np.isnan(col.std()) else None,
+				"min": float(col.min()),
+				"max": float(col.max()),
+				"mean": float(col.mean()),
+				"skewness": float(col.skew()) if not np.isnan(col.skew()) else None
+			}
 
     return stats
 
 
+# TODO: add discord specific metrics like custom emojis, mentions, attachments, and links
 def analyze_message(message):
 	data = {}
 	
@@ -69,7 +94,13 @@ def analyze_message(message):
 
 
 def get_textstat_data(message):
-	word_count = message.split()
+	word_count = textstat.lexicon_count(message, removepunct=True)
+
+	difficult_word_ratio = 0
+	
+	if word_count > 0:
+		# we want a ratio of difficult words to all words, not just a count
+		difficult_word_ratio = textstat.difficult_words(message) / word_count
 
 	return {
 		"flesch_reading_ease": textstat.flesch_reading_ease(message),
@@ -78,10 +109,7 @@ def get_textstat_data(message):
 		"coleman_liau_index": textstat.coleman_liau_index(message),
 		"automated_readability_index": textstat.automated_readability_index(message),
 		"dale_chall_readability_score": textstat.dale_chall_readability_score(message),
-
-		# we want a ratio of difficult words to all words, not just a count
-		"difficult_word_ratio": textstat.difficult_words(message) / textstat.lexicon_count(message, removepunct=True),
-
+		"difficult_word_ratio": difficult_word_ratio,
 		"linsear_write_formula": textstat.linsear_write_formula(message),
 		"gunning_fog": textstat.gunning_fog(message)
 	}
