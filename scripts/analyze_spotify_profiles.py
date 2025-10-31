@@ -25,26 +25,38 @@ def main():
 	spotify_data = []
 
 	# TODO: do this for all users in users.json automatically
+	# TODO: use csv instead of json
 	with open("data/users.json", "r") as file:
 		servers = json.load(file)
 
 		for server in servers:
-			users = server["spotify_sample"]
-			for id, user in users.items():
+			spotify_users = server["spotify_sample"]
+			for id, user in spotify_users.items():
 				print("getting data from user " + id)
 				spotify_profile = user["spotifyUrl"]
 				user_data = get_user_data(spotifyApi, spotify_profile)
 
 				# TODO: don't use id bc thats identifiable
+				user_data["has_spotify"] = 1
 				user_data["id"] = id
 
 				spotify_data.append(user_data)
 
+			
+			# non spotify users
+			non_spotify_users = server["non_spotify_sample"]
+			for id, user in non_spotify_users.items():
+				spotify_data.append({
+				# TODO: don't use id bc thats identifiable
+					"has_spotify": 0,
+					"id": id
+				})
+
 
 	# save data to json
+	# TODO: use csv instead of json
 	with open("data/spotify_data.json", "w", encoding="utf-8") as f:
 		json.dump(spotify_data, f, ensure_ascii=False, indent=2)
-
 
 
 def get_user_data(spotifyApi, profile_url):
@@ -73,13 +85,13 @@ def get_user_data(spotifyApi, profile_url):
 		print("Getting track stats")
 		user_stats = get_stats_from_tracks(spotifyApi, all_tracks)
 
+		# get data on playlist lengths
+		playlist_df = pd.DataFrame({"playlist_length": playlist_lengths})
+		user_stats |= get_distribution_from_df(playlist_df, ["playlist_length"])
+
 	# number of tracks and playlists
 	user_stats["playlists_count"] = len(playlist_lengths)
 	user_stats["tracks_count"] = len(all_tracks)
-
-	# get data on playlist lengths
-	playlist_df = pd.DataFrame({"playlist_length": playlist_lengths})
-	user_stats |= get_distribution_from_df(playlist_df, ["playlist_length"])
 
 	return user_stats
 
@@ -182,37 +194,39 @@ def get_artist_entropy(tracks):
 
 
 def get_audio_features_from_tracks(track_ids):
-    audio_features = []
+	audio_features = []
 
-    for i in range(0, len(track_ids), 40):  # batch in 40s
-        # get string list of next 40 track ids
-        # for some reason they can be None sometimes? maybe local files
-        track_batch = [tid for tid in track_ids[i:i+40] if tid is not None]
+	for i in range(0, len(track_ids), 40):  # batch in 40s
+		# get string list of next 40 track ids
+		# for some reason they can be None sometimes? maybe local files
+		track_batch = [tid for tid in track_ids[i:i+40] if tid is not None]
 
-        ids_batch = ",".join(track_batch)
+		ids_batch = ",".join(track_batch)
 
-        while True:
-            # get audio features
-            url = f"https://api.reccobeats.com/v1/audio-features?ids={ids_batch}"
-            response = requests.get(url)
+		while True:
+			# get audio features
+			url = f"https://api.reccobeats.com/v1/audio-features?ids={ids_batch}"
+			response = requests.get(url)
 
-            if response.status_code == 200:
-                data = response.json()
-                audio_features.extend(data.get("content", []))
-                break  # exit retry loop if successful
+			print(f"Fetching tracks {i + 1}-{i + len(track_batch)}")
 
-            elif response.status_code == 429:
-                # handle rate limit
-                retry_after = int(response.headers.get("Retry-After", 4)) + 1  # default 5 sec and add an extra second in case
-                print(f"Rate limited. Retrying after {retry_after} seconds...")
-                time.sleep(retry_after)
+			if response.status_code == 200:
+				data = response.json()
+				audio_features.extend(data.get("content", []))
+				break  # exit retry loop if successful
 
-            else:
-                print(f"{url}")
-                print(f"Error fetching batch {i}-{i+len(track_batch)}: {response.status_code}")
-                break  # exit retry loop on other errors
+			elif response.status_code == 429:
+				# handle rate limit
+				retry_after = int(response.headers.get("Retry-After", 4)) + 1  # default 5 sec and add an extra second in case
+				print(f"Rate limited, retrying after {retry_after} seconds")
+				time.sleep(retry_after)
 
-    return audio_features
+			else:
+				print(f"{url}")
+				print(f"Error fetching batch {i + 1}-{i+len(track_batch)}: {response.status_code}")
+				break  # exit retry loop on other errors
+
+	return audio_features
 
 
 def get_metadata_from_tracks(spotifyApi, track_ids):
