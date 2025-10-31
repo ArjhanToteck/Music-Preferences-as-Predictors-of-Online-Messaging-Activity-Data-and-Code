@@ -12,7 +12,7 @@ vaderSentimentAnalyzer = SentimentIntensityAnalyzer()
 def main():
 	message_data = []
 
-
+	# TODO: use csv instead of json
 	with open("data/users.json", "r") as file:
 		servers = json.load(file)
 
@@ -31,6 +31,7 @@ def main():
 				message_data.append(user_data)
 
 	# save data to json
+	# TODO: use csv instead of json
 	with open("data/messages_data.json", "w", encoding="utf-8") as f:
 		json.dump(message_data, f, ensure_ascii=False, indent=2)
 
