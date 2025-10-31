@@ -16,7 +16,6 @@ SPOTIFY_ID = os.getenv("SPOTIFY_ID")
 SPOTIFY_SECRET = os.getenv("SPOTIFY_SECRET")
 SPOTIFY_PROFILE = os.getenv("SPOTIFY_PROFILE")
 
-
 def main():
 	spotifyApi = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
 		client_id=SPOTIFY_ID,
@@ -80,7 +79,7 @@ def get_user_data(spotifyApi, profile_url):
 
 	# get data on playlist lengths
 	playlist_df = pd.DataFrame({"playlist_length": playlist_lengths})
-	user_stats["playlist_length"] = get_distribution_stats(playlist_df, ["playlist_length"])
+	user_stats |= get_distribution_from_df(playlist_df, ["playlist_length"])
 
 	return user_stats
 
@@ -124,9 +123,6 @@ def get_stats_from_tracks(spotifyApi, tracks):
 	# get more properties from spotify metadata
 	spotify_metadata = get_metadata_from_tracks(spotifyApi, track_ids)
 
-	# combine audio features and metadata
-	all_features = {}
-
 	# create data frames for audio features and metadata
 	audio_df = pd.DataFrame(audio_features)
 	meta_df = pd.DataFrame(spotify_metadata)
@@ -153,7 +149,7 @@ def get_stats_from_tracks(spotifyApi, tracks):
 	]	
 
 	# get distribution stats
-	tracks_stats = get_distribution_stats(all_features_df, properties)
+	tracks_stats = get_distribution_from_df(all_features_df, properties)
 
 	# include artist entropy stat
 	tracks_stats["artist_entropy"] = get_artist_entropy(tracks)
@@ -245,24 +241,30 @@ def get_metadata_from_tracks(spotifyApi, track_ids):
 	return spotify_metadata
 
 
-def get_distribution_stats(df, properties):
-    def describe_column(col):
-        return {
-			"q1": float(col.quantile(0.25)),
-			"median": float(col.median()),
-			"q3": float(col.quantile(0.75)),
-			"range": float(col.max() - col.min()),
-			"iqr": float(col.quantile(0.75) - col.quantile(0.25)),
-			"std_dev": float(col.std()) if not np.isnan(col.std()) else None,
-			"min": float(col.min()),
-			"max": float(col.max()),
-			"mean": float(col.mean()),
-			"skewness": float(col.skew()) if not np.isnan(col.skew()) else None
-		}
+def get_distribution_from_df(df, properties):
+	stats = {}
 
-    # apply to each property
-    stats = {prop: describe_column(df[prop]) for prop in properties if prop in df.columns}
-    return stats
+	# apply to each property
+	for prop in properties:
+		if prop in df.columns:
+			stats |= get_distribution_from_col(df[prop], prop)
+
+	return stats
+
+
+def get_distribution_from_col(col, prefix):
+	return {
+		prefix + "_q1": float(col.quantile(0.25)),
+		prefix + "_median": float(col.median()),
+		prefix + "_q3": float(col.quantile(0.75)),
+		prefix + "_range": float(col.max() - col.min()),
+		prefix + "_iqr": float(col.quantile(0.75) - col.quantile(0.25)),
+		prefix + "_std_dev": float(col.std()) if not np.isnan(col.std()) else None,
+		prefix + "_min": float(col.min()),
+		prefix + "_max": float(col.max()),
+		prefix + "_mean": float(col.mean()),
+		prefix + "_skewness": float(col.skew()) if not np.isnan(col.skew()) else None
+	}
 
 
 if __name__ == "__main__":
