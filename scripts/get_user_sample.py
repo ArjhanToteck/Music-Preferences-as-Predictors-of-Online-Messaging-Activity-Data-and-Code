@@ -1,6 +1,7 @@
 import random
 import os
 import json
+import time
 from dotenv import load_dotenv
 import discord
 from discord import ConnectionType
@@ -9,7 +10,6 @@ from discord import ConnectionType
 load_dotenv()
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-GUILD_ID = int(os.getenv("GUILD_ID"))
 CHANNEL_HISTORY_LIMIT = int(os.getenv("CHANNEL_HISTORY_LIMIT"))
 USER_STRATUM_SIZE = int(os.getenv("USER_STRATUM_SIZE"))
 
@@ -23,29 +23,25 @@ class DiscordClient(discord.Client):
 	async def on_ready(self):
 		print("Logged onto Discord as", self.user)
 
-		# get guild
-		guild = self.get_guild(GUILD_ID)
-
 		await self.scrape_all_servers()
 
 
 	async def scrape_all_servers(self):
 		server_samples = []
 
-		# read servers.json
-		with open("data/servers.json", "r") as file:
-			servers = json.load(file)
+		# get all servers
+		servers = self.guilds
 
-			for server in servers:
-				# fetch server from id
-				guild_id = int(server["id"])
-				guild = self.get_guild(guild_id)
+		for server in servers:
+			# fetch server from id
+			guild_id = int(server.id)
+			guild = self.get_guild(guild_id)
 
-				# scrape server
-				server_sample = await scrape_server(guild)
-				server_sample["topgg_data"] = server
+			# scrape server
+			server_sample = await scrape_server(guild)
+			server_sample["topgg_data"] = server
 
-				server_samples.append(server_sample)
+			server_samples.append(server_sample)
 
 		# save sample to json
 		with open("data/users.json", "w", encoding="utf-8") as f:
@@ -79,23 +75,24 @@ async def scrape_users(guild):
 		"non_spotify_stratum": {},
 	}
 
+	# keep track of users we failed to fetch so we don't try again
+	failed_fetch_users = []
+
 	# get channels list
 	channels = await guild.fetch_channels()
 
 	# loop through channels
-	# TODO: fix the channel-based message sampling approach
-	# messages should be randomly sampled-server wide or something idfk
 	for channel in channels:
-		if len(users["spotify_stratum"]) > 9:
-			break
-
 		# make sure they're writable
+		# this avoids announcement channels and shit
 		if not channel.permissions_for(guild.me).send_messages:
 			continue
 
 		# make sure they're text channels
 		if not isinstance(channel, discord.TextChannel):
 			continue
+
+		print(f"Scraping channel {channel.name}")
 
 		# get message history
 		async for message in channel.history(limit=CHANNEL_HISTORY_LIMIT):
@@ -106,8 +103,10 @@ async def scrape_users(guild):
 			if author.bot:
 				continue
 			
-			# check if already in spotify stratum
-			if author.id in users["spotify_stratum"]:
+			# check if already previously checked this user
+			if author.id in failed_fetch_users:
+				continue
+			elif author.id in users["spotify_stratum"]:
 				# add new message to list
 				users["spotify_stratum"][author.id]["messages"].append(message.content)
 
@@ -116,7 +115,6 @@ async def scrape_users(guild):
 				# add new message to list
 				users["non_spotify_stratum"][author.id]["messages"].append(message.content)
 
-
 			# new user found
 			else:
 				print(f"Found user {author.name}")
@@ -124,7 +122,12 @@ async def scrape_users(guild):
 				# get profile and spotify connection
 				spotify_url = None
 
+				failed_fetch_users.append(author.id)
+
 				try:
+					# wait a second so we don't get banned LMAO
+					time.sleep(0.5)
+
 					profile = await author.profile()
 					connections = profile.connections
 
@@ -136,6 +139,7 @@ async def scrape_users(guild):
 							print("Found Spotify account")
 				except:
 					print("Failed to fetch profile")
+					continue
 
 				# create object for user to store messages and user data
 				author_data = {
