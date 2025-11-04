@@ -122,11 +122,9 @@ async def scrape_users(guild):
 				# get profile and spotify connection
 				spotify_url = None
 
-				failed_fetch_users.append(author.id)
-
 				try:
 					# wait a second so we don't get banned LMAO
-					time.sleep(0.5)
+					time.sleep(2.5)
 
 					profile = await author.profile()
 					connections = profile.connections
@@ -139,6 +137,7 @@ async def scrape_users(guild):
 							print("Found Spotify account")
 				except:
 					print("Failed to fetch profile")
+					failed_fetch_users.append(author.id)
 					continue
 
 				# create object for user to store messages and user data
