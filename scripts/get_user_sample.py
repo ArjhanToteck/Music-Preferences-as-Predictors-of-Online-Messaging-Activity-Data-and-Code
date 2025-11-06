@@ -155,6 +155,7 @@ async def scrape_users(guild):
 
 	return users
 
+
 def select_random_user_sample(users, sample_size):
 	# select a random sample of dict keys
 	sampled_keys = random.sample(list(users), min(sample_size, len(users)))
@@ -163,6 +164,7 @@ def select_random_user_sample(users, sample_size):
 	sample = {k: users[k] for k in sampled_keys}
 
 	return sample
+
 
 if __name__ == "__main__":
     main()
