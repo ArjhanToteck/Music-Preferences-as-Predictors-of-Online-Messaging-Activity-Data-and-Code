@@ -58,6 +58,7 @@ def main():
 
 				spotify_data.append(user_data)
 
+				# save data after every spotify user to make sure data isn't lost with errors
 				save_spotify_data(spotify_data)
 
 				fetched_users += 1
@@ -70,22 +71,22 @@ def main():
 				# check if already loaded from progress file
 				if id in processed_ids:
 					continue
-				
+
 				spotify_data.append({
 				# TODO: don't use id bc thats identifiable
 					"has_spotify": 0,
 					"id": id
 				})
 
-				save_spotify_data(spotify_data)
-
 				fetched_users += 1
 				check_batch_completion(fetched_users)
+
+			# since non spotify users are processed quickly on-device, we can just save once after they're all done
+			save_spotify_data(spotify_data)
 
 
 def save_spotify_data(spotify_data):
 	# save data to json
-	# this is done after every user to make sure data isn't lost with errors
 	with open("data/spotify_data.json", "w", encoding="utf-8") as f:
 		json.dump(spotify_data, f, ensure_ascii=False, indent=2)
 
