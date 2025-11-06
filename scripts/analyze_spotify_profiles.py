@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import time
 from dotenv import load_dotenv
 import spotipy
@@ -15,6 +16,7 @@ load_dotenv()
 SPOTIFY_ID = os.getenv("SPOTIFY_ID")
 SPOTIFY_SECRET = os.getenv("SPOTIFY_SECRET")
 SPOTIFY_PROFILE = os.getenv("SPOTIFY_PROFILE")
+SPOTIFY_BATCH_SIZE = int(os.getenv("SPOTIFY_BATCH_SIZE"))
 
 def main():
 	spotifyApi = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
@@ -23,18 +25,32 @@ def main():
 	))
 
 	spotify_data = []
+	fetched_users = 0
 
-	# TODO: do this for all users in users.json automatically
-	# TODO: use csv instead of json
-	with open("data/users.json", "r") as file:
-		servers = json.load(file)
+	# load spotify data from file to pick up where previously left off
+	if os.path.exists("data/spotify_data.json"):
+		with open("data/spotify_data.json", "r") as progress_file:
+			spotify_data = json.load(progress_file)
+
+	# keep track if ids we already checked
+	processed_ids = {entry["id"] for entry in spotify_data}
+
+	with open("data/users.json", "r") as users_file:
+		servers = json.load(users_file)
 
 		for server in servers:
 			spotify_users = server["spotify_sample"]
 			for id, user in spotify_users.items():
+
+				# check if already loaded from progress file
+				if id in processed_ids:
+					continue
+
 				print("getting data from user " + id)
-				spotify_profile = user["spotifyUrl"]
-				user_data = get_user_data(spotifyApi, spotify_profile)
+
+				# get data from profile url
+				spotify_url = user["spotifyUrl"]
+				user_data = get_user_data(spotifyApi, spotify_url)
 
 				# TODO: don't use id bc thats identifiable
 				user_data["has_spotify"] = 1
@@ -42,21 +58,43 @@ def main():
 
 				spotify_data.append(user_data)
 
+				save_spotify_data(spotify_data)
+
+				fetched_users += 1
+				check_batch_completion(fetched_users)
 			
 			# non spotify users
 			non_spotify_users = server["non_spotify_sample"]
+			
 			for id, user in non_spotify_users.items():
+				# check if already loaded from progress file
+				if id in processed_ids:
+					continue
+				
 				spotify_data.append({
 				# TODO: don't use id bc thats identifiable
 					"has_spotify": 0,
 					"id": id
 				})
 
+				save_spotify_data(spotify_data)
 
+				fetched_users += 1
+				check_batch_completion(fetched_users)
+
+
+def save_spotify_data(spotify_data):
 	# save data to json
-	# TODO: use csv instead of json
+	# this is done after every user to make sure data isn't lost with errors
 	with open("data/spotify_data.json", "w", encoding="utf-8") as f:
 		json.dump(spotify_data, f, ensure_ascii=False, indent=2)
+
+
+def check_batch_completion(fetched_users):
+	# exit program after certain number of users
+	if fetched_users >= SPOTIFY_BATCH_SIZE:
+		print(f"{SPOTIFY_BATCH_SIZE} users added and saved to file. Wait a bit before the next batch to prevent rate limiting.")
+		sys.exit()
 
 
 def get_user_data(spotifyApi, profile_url):
