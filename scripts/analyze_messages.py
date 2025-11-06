@@ -46,6 +46,7 @@ def analyze_user(messages):
 	stats = {
 		"message_count": len(messages)
 	}
+	
 	for col_name, col in df.items():
 		if pd.api.types.is_numeric_dtype(col):
 			stats[col_name + "_q1"] = float(col.quantile(0.25))
