@@ -9,7 +9,7 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import requests
 import pandas as pd
 import numpy as np
-from scipy.stats import entropy
+from scipy.stats import entropy as scipy_entropy
 
 # load env variables
 load_dotenv()
@@ -203,34 +203,79 @@ def get_stats_from_tracks(spotifyApi, tracks):
 	# get distribution stats
 	tracks_stats = get_distribution_from_df(all_features_df, properties)
 
-	# include artist entropy stat
+	# include entropy stats
 	tracks_stats["artist_entropy"] = get_artist_entropy(tracks)
+	tracks_stats["album_entropy"] = get_album_entropy(tracks)
+	tracks_stats["track_entropy"] = get_track_entropy(tracks)
 
 	return tracks_stats
 
 
 def get_artist_entropy(tracks):
-	# get artists from tracks
-	# (only counts the first artist from a track)
-	artist_names = [t["track"]["artists"][0]["name"] for t in tracks if t["track"] and t["track"]["artists"]]
-	artist_df = pd.DataFrame({"artist_name": artist_names})
+	artist_ids = []
 
-	# get counts for each artist
-	artist_counts = artist_df["artist_name"].value_counts(normalize=True)  # normalize to get proportions
+	# get albums from tracks
+	for t in tracks:
+		track = t.get("track")
 
-	# get raw artist entropy
-	artist_entropy = entropy(artist_counts)
+		if track and track.get("artists"):
+			artist_ids.append(track["artists"][0].get("id"))
 
-	# normalize
-	unique_artist_count = artist_df["artist_name"].nunique()
-	
-	if unique_artist_count > 1:
-		artist_entropy /= np.log(unique_artist_count)
-	else:
-		# only one artist, no diversity
-		artist_entropy = 0
+	# get entropy
+	artist_entropy = get_entropy_from_ids_list(artist_ids)
 
 	return artist_entropy
+
+
+def get_album_entropy(tracks):
+	album_ids = []
+
+	# get albums from tracks
+	for t in tracks:
+		track = t.get("track")
+
+		if track and track.get("album"):
+			album_ids.append(track["album"].get("id"))
+
+	# get entropy
+	album_entropy = get_entropy_from_ids_list(album_ids)
+
+	return album_entropy
+
+
+def get_track_entropy(tracks):
+	track_ids = []
+
+	# get albums from tracks
+	for t in tracks:
+		track = t.get("track")
+
+		if track and track.get("id"):
+			track_ids.append(track["id"])
+
+	# get entropy
+	track_entropy = get_entropy_from_ids_list(track_ids)
+
+	return track_entropy
+
+
+def get_entropy_from_ids_list(ids):
+	ids_df = pd.DataFrame({"id": ids})
+
+	# get counts for each artist
+	counts = ids_df["id"].value_counts(normalize=True)  # normalize to get proportions
+	unique_instances = ids_df["id"].nunique()
+
+	# raw entropy
+	raw_entropy = scipy_entropy(counts)
+
+	# normalize
+	if unique_instances > 1:
+		normalized_entropy = raw_entropy / np.log(unique_instances)
+	else:
+		normalized_entropy = 0.0
+
+	return float(normalized_entropy)
 
 
 def get_audio_features_from_tracks(track_ids):
