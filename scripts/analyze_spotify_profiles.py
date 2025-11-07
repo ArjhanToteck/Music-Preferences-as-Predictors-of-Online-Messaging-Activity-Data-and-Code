@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import time
+from collections import Counter
 from dotenv import load_dotenv
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
@@ -235,10 +236,14 @@ def get_artist_entropy(tracks):
 def get_audio_features_from_tracks(track_ids):
 	audio_features = []
 
-	for i in range(0, len(track_ids), 40):  # batch in 40s
+	# count duplicates
+	track_counts = Counter([tid for tid in track_ids if isinstance(tid, str) and tid.strip()])
+	unique_track_ids = list(track_counts.keys())
+
+	for i in range(0, len(unique_track_ids), 40):  # batch in 40s
 		# get string list of next 40 track ids
 		# for some reason they can be None sometimes? maybe local files
-		track_batch = [tid for tid in track_ids[i:i+40] if tid is not None]
+		track_batch = [tid for tid in unique_track_ids[i:i+40] if tid is not None]
 
 		ids_batch = ",".join(track_batch)
 
@@ -247,11 +252,20 @@ def get_audio_features_from_tracks(track_ids):
 			url = f"https://api.reccobeats.com/v1/audio-features?ids={ids_batch}"
 			response = requests.get(url)
 
-			print(f"Fetching tracks {i + 1}-{i + len(track_batch)}")
+			print(f"Fetching audio data for tracks {i + 1}-{i + len(track_batch)}")
 
 			if response.status_code == 200:
-				data = response.json()
-				audio_features.extend(data.get("content", []))
+				data = response.json().get("content", [])
+
+                # loop through tracks
+				for track_data in data:
+					# get spotify id from url (id field will be its reccobeats id)
+					spotify_id = track_data["href"].split("/")[-1]
+					
+                	# replicate each track according to its count
+					count = track_counts.get(spotify_id, 1)
+					audio_features.extend([track_data] * count)
+
 				break  # exit retry loop if successful
 
 			elif response.status_code == 429:
@@ -271,25 +285,34 @@ def get_audio_features_from_tracks(track_ids):
 def get_metadata_from_tracks(spotifyApi, track_ids):
 	spotify_metadata = []
 
+	# spotify API automatically handles duplicate tracks, so we don't need to do that like with reccobeats
+
 	for i in range(0, len(track_ids), 50):
-		batch = track_ids[i:i+50]
+    
+		track_batch = track_ids[i:i+50]
+
+		print(f"Fetching metadata for tracks {i + 1}-{i + len(track_batch)}")
 
 		# remove None or non strings
-		batch = [tid for tid in batch if isinstance(tid, str) and tid.strip()]
+		track_batch = [tid for tid in track_batch if isinstance(tid, str) and tid.strip()]
 
 		try:
-			results = spotifyApi.tracks(batch)
+			results = spotifyApi.tracks(track_batch)
+
 			for track in results["tracks"]:
 				if track:
-					spotify_metadata.append({
+					track_metadata = {
 						"id": track["id"],
 						"popularity": track["popularity"],
 						"explicit": int(track["explicit"]),  # treat as 0/1
 						"duration_ms": track["duration_ms"],
 						"release_year": int(track["album"]["release_date"][:4])
-					})
+					}
+
+					# add the track as many times as it appears throughout all playlists
+					spotify_metadata.append(track_metadata)
 		except Exception as e:
-			print(f"Error fetching metadata batch {i}-{i+len(batch)}: {e}")
+			print(f"Error fetching metadata batch {i + 1}-{i+len(track_batch)}: {e}")
 
 	return spotify_metadata
 
