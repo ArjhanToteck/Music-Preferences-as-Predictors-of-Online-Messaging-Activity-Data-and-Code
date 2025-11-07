@@ -262,7 +262,7 @@ def get_audio_features_from_tracks(track_ids):
 					# get spotify id from url (id field will be its reccobeats id)
 					spotify_id = track_data["href"].split("/")[-1]
 					
-                	# replicate each track according to its count
+                	# add the track as many times as it appears throughout all playlists
 					count = track_counts.get(spotify_id, 1)
 					audio_features.extend([track_data] * count)
 
@@ -285,11 +285,16 @@ def get_audio_features_from_tracks(track_ids):
 def get_metadata_from_tracks(spotifyApi, track_ids):
 	spotify_metadata = []
 
-	# spotify API automatically handles duplicate tracks, so we don't need to do that like with reccobeats
+	# spotify API automatically handles duplicate tracks, so we don't technically need to do that like with reccobeats
+	# it saves time and reduces api calls tho
 
-	for i in range(0, len(track_ids), 50):
+	# count duplicates
+	track_counts = Counter([tid for tid in track_ids if isinstance(tid, str) and tid.strip()])
+	unique_track_ids = list(track_counts.keys())
+
+	for i in range(0, len(unique_track_ids), 50):
     
-		track_batch = track_ids[i:i+50]
+		track_batch = unique_track_ids[i:i+50]
 
 		print(f"Fetching metadata for tracks {i + 1}-{i + len(track_batch)}")
 
@@ -301,6 +306,13 @@ def get_metadata_from_tracks(spotifyApi, track_ids):
 
 			for track in results["tracks"]:
 				if track:
+
+					release_year = int(track["album"]["release_date"][:4])
+
+					# fix invalid release years
+					# spotify sometimes reports them as 0 for some reason
+					release_year = None if release_year == 0 else release_year
+
 					track_metadata = {
 						"id": track["id"],
 						"popularity": track["popularity"],
@@ -309,8 +321,12 @@ def get_metadata_from_tracks(spotifyApi, track_ids):
 						"release_year": int(track["album"]["release_date"][:4])
 					}
 
-					# add the track as many times as it appears throughout all playlists
-					spotify_metadata.append(track_metadata)
+
+					# duplicate by how many times this track appears throughout all playlists
+					count = track_counts.get(track["id"], 1)
+					spotify_metadata.extend([track_metadata] * count)
+
+
 		except Exception as e:
 			print(f"Error fetching metadata batch {i + 1}-{i+len(track_batch)}: {e}")
 
