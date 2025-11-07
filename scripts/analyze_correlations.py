@@ -21,6 +21,10 @@ def main():
 	messages_numeric = merged_data[messages_numeric_cols]
 	music_numeric = merged_data[music_numeric_cols]
 
+	# drop id column and export to csv
+	unidentifiable_data = merged_data.drop(columns=["id"])
+	unidentifiable_data.to_csv("data/messages_and_spotify_data.csv", index=False)
+
 	# get correlations
 	pearson_df = get_correlations(messages_numeric, music_numeric, method="pearson")
 	spearman_df = get_correlations(messages_numeric, music_numeric, method="spearman")
