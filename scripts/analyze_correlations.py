@@ -3,7 +3,6 @@ import os
 import pandas as pd
 import numpy as np
 from scipy.stats import pearsonr, kendalltau, spearmanr
-import dcor
 from dotenv import load_dotenv
 
 # load env variables
@@ -45,21 +44,7 @@ def main():
 	kendall_df = get_correlations(messages_numeric, music_numeric, kendalltau)
 	kendall_df.to_csv("data/kendall_correlations.csv", index=False)
 
-	distance_df = get_correlations(messages_numeric, music_numeric, distance_correlation)
-	distance_df.to_csv("data/distance_correlations.csv", index=False)
-
 	print("Correlations computed and saved to files")
-
-
-def distance_correlation(x, y, n_resamples=1000):
-	# get distance correlation
-	correlation = dcor.distance_correlation(x, y)
-
-	# get p value via permutation test
-	test = dcor.independence.distance_covariance_test(x, y, num_resamples=n_resamples)
-	p_value = test.pvalue
-
-	return correlation, p_value
 
 
 def get_correlations(df1, df2, method="pearson"):
