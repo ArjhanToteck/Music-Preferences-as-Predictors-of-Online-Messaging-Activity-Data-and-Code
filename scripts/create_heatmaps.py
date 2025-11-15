@@ -21,14 +21,14 @@ def create_correlation_heatmap(file, correlation_type, min_correlation=0.15, max
 	# calculate heatmap
 	heatmap_data = df.pivot(index="message_metric", columns="music_metric", values="correlation")
 
-	plt.figure(num=f"{correlation_type} Correlations Between Message and Music Variables", figsize=(20, 12))
+	plt.figure(num=f"{correlation_type} Correlations Between Message and Music Variables", figsize=(25, 15))
 
 	# plot
 	sns.heatmap(
 		heatmap_data, 
 		cmap="coolwarm",
 		center=0,
-		annot=False,
+		annot=True,
 		linewidths=0.5
 	)
 
