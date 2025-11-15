@@ -1,4 +1,4 @@
-# Music Preferences As Predictors of Online Messaging Activity: Data and Source Code
+# Music Preferences As Predictors of Online Messaging Activity: Data and Code
 This is the repository for a research paper that explores the relationships between various variables relating to online music and messaging activity.
 
 This repository contains the Python scripts referenced in the methodology of the paper. The scripts are used to:
