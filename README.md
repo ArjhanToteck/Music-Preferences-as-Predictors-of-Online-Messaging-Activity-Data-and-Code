@@ -16,13 +16,13 @@ This repository also contains the raw data referenced in the results of the pape
 For accurate reproducibility, it is important to install the following Python dependencies with the following versions:
 
 - [alt-profanity-check](https://github.com/dimitrismistriotis/alt-profanity-check), version 1.7.2
-- [discord.py-self](https://github.com/dolfies/discord.py-self), version  2.1.0
-- [matplotlib](https://matplotlib.org/), version  3.5.1
+- [discord.py-self](https://github.com/dolfies/discord.py-self), version 2.1.0b5180+g600fd36d
+- [matplotlib](https://matplotlib.org/), version 3.5.1
 - [numpy](https://numpy.org/), version  1.26.4
-- [pandas](https://pandas.pydata.org/), version  2.2.1
-- [scipy](https://scipy.org/), version  1.8.0
-- [seaborn](https://seaborn.pydata.org/), version  0.13.2
-- [spotipy](https://github.com/spotipy-dev/spotipy), version  2.25.1
-- [textblob](https://github.com/sloria/textblob), version  0.19.0
+- [pandas](https://pandas.pydata.org/), version 2.2.1
+- [scipy](https://scipy.org/), version 1.8.0
+- [seaborn](https://seaborn.pydata.org/), version 0.13.2
+- [spotipy](https://github.com/spotipy-dev/spotipy), version 2.25.1
+- [textblob](https://github.com/sloria/textblob), version 0.19.0
 - [textstat](https://textstat.org/), version  0.7.10
-- [vaderSentiment](https://github.com/cjhutto/vaderSentiment), version  3.3.2
+- [vaderSentiment](https://github.com/cjhutto/vaderSentiment), version 3.3.2
