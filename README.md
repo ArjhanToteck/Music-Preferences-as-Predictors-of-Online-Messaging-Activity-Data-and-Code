@@ -10,7 +10,7 @@ This repository contains the Python scripts referenced in the methodology of the
 5. Calculate correlations ([analyze_correlations.py](scripts/analyze_correlations.py)), and
 6. Create heatmaps of these correlations ([create_heatmaps.py](scripts/create_heatmaps.py))
 
-This repository also contains the raw data referenced in the results of the paper. The data is available in the (published_data)[published_data] folder. It was obtained through the steps discussed in the methodology of the paper.
+This repository also contains the raw data referenced in the results of the paper. The data is available in the [published_data](published_data) folder. It was obtained through the steps discussed in the methodology of the paper.
 
 # Dependencies
 For accurate reproducibility, it is important to install the following Python dependencies with the following versions:
