@@ -44,12 +44,7 @@ def main():
 
 	# get correlation sand save as csvs
 	pearson_df = get_correlations(messages_numeric, music_numeric, pearsonr)
-	pearson_df.to_csv(
-		"data/pearson_correlations.csv",
-		index=False,
-		quoting=3, # csv.QUOTE_NONE
-		escapechar="\\"
-	)
+	pearson_df.to_parquet("data/pearson_correlations.parquet", index=False)
 
 	print("Correlations computed and saved to files")
 

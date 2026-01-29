@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 
 def main():
 	# create heatmaps
-	create_correlation_heatmap("data/kendall_correlations.csv", "Kendall", min_correlation=0.15)
+	create_correlation_heatmap("data/pearson_correlations.parquet", "Pearson", min_correlation=0.2)
 
 
-def create_correlation_heatmap(file, correlation_type, min_correlation=0.15, max_p_value=0.05):
-	df = pd.read_csv(file)
+def create_correlation_heatmap(parquet_file, correlation_type, min_correlation=0.15, max_p_value=0.05):
+	df = pd.read_parquet(parquet_file)
 
 	# filter for correlation and p value
 	if min_correlation is not None:
