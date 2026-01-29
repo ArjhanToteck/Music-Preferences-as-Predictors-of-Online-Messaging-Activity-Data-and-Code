@@ -53,7 +53,6 @@ def main():
 				spotify_url = user["spotifyUrl"]
 				user_data = get_user_data(spotifyApi, spotify_url)
 
-				# TODO: don't use id bc thats identifiable
 				user_data["has_spotify"] = 1
 				user_data["id"] = id
 
@@ -74,7 +73,6 @@ def main():
 					continue
 
 				spotify_data.append({
-				# TODO: don't use id bc thats identifiable
 					"has_spotify": 0,
 					"id": id
 				})

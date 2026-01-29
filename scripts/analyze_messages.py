@@ -12,7 +12,6 @@ vaderSentimentAnalyzer = SentimentIntensityAnalyzer()
 def main():
 	message_data = []
 
-	# TODO: use csv instead of json
 	with open("data/users.json", "r") as file:
 		servers = json.load(file)
 
@@ -25,13 +24,11 @@ def main():
 				messages = user["messages"]
 				user_data = analyze_user(messages)
 
-				# TODO: don't use id bc thats identifiable
 				user_data["id"] = id
 
 				message_data.append(user_data)
 
 	# save data to json
-	# TODO: use csv instead of json
 	with open("data/messages_data.json", "w", encoding="utf-8") as f:
 		json.dump(message_data, f, ensure_ascii=False, indent=2)
 
@@ -63,7 +60,6 @@ def analyze_user(messages):
 	return stats
 
 
-# TODO: add discord specific metrics like custom emojis, mentions, attachments, and links
 def analyze_message(message):
 	data = {}
 	
