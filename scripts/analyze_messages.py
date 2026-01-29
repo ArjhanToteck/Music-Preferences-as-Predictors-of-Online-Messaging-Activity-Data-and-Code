@@ -54,16 +54,17 @@ def analyze_user(messages):
 	
 	for col_name, col in df.items():
 		if pd.api.types.is_numeric_dtype(col):
-			stats[col_name + "_q1"] = float(col.quantile(0.25))
+			std = col.std()
+			skew = col.std()
+
 			stats[col_name + "_median"] = float(col.median())
-			stats[col_name + "_q3"] = float(col.quantile(0.75))
 			stats[col_name + "_range"] = float(col.max() - col.min())
 			stats[col_name + "_iqr"] = float(col.quantile(0.75) - col.quantile(0.25))
-			stats[col_name + "_std_dev"] = float(col.std()) if not np.isnan(col.std()) else None
+			stats[col_name + "_std_dev"] = float(std) if not np.isnan(std) else None
 			stats[col_name + "_min"] = float(col.min())
 			stats[col_name + "_max"] = float(col.max())
 			stats[col_name + "_mean"] = float(col.mean())
-			stats[col_name + "_skewness"] = float(col.skew()) if not np.isnan(col.skew()) else None
+			stats[col_name + "_skewness"] = float(skew) if not np.isnan(skew) else None
 
 	return stats
 

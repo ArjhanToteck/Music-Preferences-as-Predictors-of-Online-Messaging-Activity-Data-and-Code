@@ -389,9 +389,7 @@ def get_distribution_from_df(df, properties):
 
 def get_distribution_from_col(col, prefix):
 	return {
-		prefix + "_q1": float(col.quantile(0.25)),
 		prefix + "_median": float(col.median()),
-		prefix + "_q3": float(col.quantile(0.75)),
 		prefix + "_range": float(col.max() - col.min()),
 		prefix + "_iqr": float(col.quantile(0.75) - col.quantile(0.25)),
 		prefix + "_std_dev": float(col.std()) if not np.isnan(col.std()) else None,
