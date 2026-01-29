@@ -5,8 +5,6 @@ import matplotlib.pyplot as plt
 def main():
 	# create heatmaps
 	create_correlation_heatmap("data/kendall_correlations.csv", "Kendall", min_correlation=0.15)
-	create_correlation_heatmap("data/pearson_correlations.csv", "Pearson", min_correlation=0.2)
-	create_correlation_heatmap("data/spearman_correlations.csv", "Spearman", min_correlation=0.2)
 
 
 def create_correlation_heatmap(file, correlation_type, min_correlation=0.15, max_p_value=0.05):

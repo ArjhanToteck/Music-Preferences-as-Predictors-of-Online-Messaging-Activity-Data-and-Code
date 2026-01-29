@@ -2,7 +2,7 @@ import json
 import os
 import pandas as pd
 import numpy as np
-from scipy.stats import pearsonr, kendalltau, spearmanr
+from scipy.stats import pearsonr
 from dotenv import load_dotenv
 
 # load env variables
@@ -12,6 +12,8 @@ load_dotenv()
 MIN_PROPERTY_SAMPLE_SIZE = int(os.getenv("MIN_PROPERTY_SAMPLE_SIZE"))
 
 def main():
+	print("Loading data")
+
 	with open("data/messages_data.json", "r") as f:
 		message_data = json.load(f)
 
@@ -25,29 +27,34 @@ def main():
 	messages_numeric_cols = df_messages.select_dtypes(include="number").columns
 	music_numeric_cols = df_music.select_dtypes(include="number").columns
 	
+	print("Merging data by id")
+
 	# merge by id
 	merged_data = pd.merge(df_messages, df_music, on="id", how="inner")
 	messages_numeric = merged_data[messages_numeric_cols]
 	music_numeric = merged_data[music_numeric_cols]
 
-	# drop id column and export to csv
+	# drop id column and export to parquet
 	unidentifiable_data = merged_data.drop(columns=["id"])
-	unidentifiable_data.to_csv("data/messages_and_spotify_data.csv", index=False)
+
+	print("exporting raw data to parquet")	
+	unidentifiable_data.to_parquet("data/messages_and_spotify_data.parquet", index=False)
+
+	print("Searching for correlations")
 
 	# get correlation sand save as csvs
 	pearson_df = get_correlations(messages_numeric, music_numeric, pearsonr)
-	pearson_df.to_csv("data/pearson_correlations.csv", index=False)
-
-	spearman_df = get_correlations(messages_numeric, music_numeric, spearmanr)
-	spearman_df.to_csv("data/spearman_correlations.csv", index=False)
-
-	kendall_df = get_correlations(messages_numeric, music_numeric, kendalltau)
-	kendall_df.to_csv("data/kendall_correlations.csv", index=False)
+	pearson_df.to_csv(
+		"data/pearson_correlations.csv",
+		index=False,
+		quoting=3, # csv.QUOTE_NONE
+		escapechar="\\"
+	)
 
 	print("Correlations computed and saved to files")
 
 
-def get_correlations(df1, df2, method="pearson"):
+def get_correlations(df1, df2, method):
 	results = []
 
 	# loop through columns in first property
