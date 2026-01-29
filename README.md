@@ -18,7 +18,6 @@ For accurate reproducibility, it is important to install the following Python de
 - [alt-profanity-check](https://github.com/dimitrismistriotis/alt-profanity-check), version 1.7.2
 - [discord.py-self](https://github.com/dolfies/discord.py-self), version 2.1.0b5180+g600fd36d
 - [matplotlib](https://matplotlib.org/), version 3.5.1
-- [nltk](https://www.nltk.org/), version 3.9.2
 - [numpy](https://numpy.org/), version  1.26.4
 - [pandas](https://pandas.pydata.org/), version 2.2.1
 - [python-dotenv](https://pypi.org/project/python-dotenv/), version 1.2.1

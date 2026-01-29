@@ -6,36 +6,13 @@ from profanity_check import predict_prob as predict_profanity_prob
 from textblob import TextBlob
 from collections import Counter
 import pandas as pd
-import nltk
-from nltk.corpus import treebank
 
-treeBankPosTags = None
-treeBankBigrams = None
-treeBankTrigrams = None
 vaderSentimentAnalyzer = None
 
 def main():
 	# create sentiment analyzer
 	global vaderSentimentAnalyzer
 	vaderSentimentAnalyzer = SentimentIntensityAnalyzer()
-
-	# make sure the corpus is downloaded
-	nltk.download("treebank")
-
-	# flatten all sentences into list of (word, tag) pairs
-	nltkTaggedWords = [pair for sent in treebank.tagged_sents() for pair in sent]
-
-	# get all unique POS tags
-	global treeBankPosTags
-	treeBankPosTags = sorted(set(tag for (word, tag) in nltkTaggedWords))
-
-	# get all unique bigrams
-	global treeBankBigrams
-	treeBankBigrams = [(t1, t2) for t1 in treeBankPosTags for t2 in treeBankPosTags]
-
-	# get all unique trigrams
-	global treeBankTrigrams
-	treeBankTrigrams = [(t1, t2, t3) for t1 in treeBankPosTags for t2 in treeBankPosTags for t3 in treeBankPosTags]
 
 	# prepare message data
 	message_data = []
@@ -66,6 +43,9 @@ def analyze_user(messages):
 	message_data = [analyze_message(msg) for msg in messages]
 
 	df = pd.DataFrame(message_data)
+
+	# make sure no data counts as 0 (this is for the pos ngram ratios)
+	df = pd.DataFrame(message_data).fillna(0)
 
 	# get statistics for columns
 	stats = {
@@ -199,7 +179,7 @@ def get_textblob_data(message):
 	# get ratio for each part of speech
 	pos_ratios = {
 		f"textblob_{pos}_ratio": pos_counts.get(pos, 0) / word_count if word_count else 0
-		for pos in treeBankPosTags
+		for pos, count in pos_counts.items()
 	}
 
 	data |= pos_ratios
@@ -210,7 +190,7 @@ def get_textblob_data(message):
 
 	bigram_ratios = {
 		f"textblob_{t1}_{t2}_ratio": bigram_counts.get((t1, t2), 0) / len(pos_bigrams) if pos_bigrams else 0
-		for t1, t2 in treeBankBigrams
+		for (t1, t2), count in bigram_counts.items()
 	}
 
 	data |= bigram_ratios
@@ -221,7 +201,7 @@ def get_textblob_data(message):
 
 	trigram_ratios = {
 		f"textblob_{t1}_{t2}_{t3}_ratio": trigram_counts.get((t1, t2, t3), 0) / len(pos_trigrams) if pos_trigrams else 0
-		for t1, t2, t3 in treeBankTrigrams
+		for (t1, t2, t3), count in trigram_counts.items()
 	}
 
 	data |= trigram_ratios
