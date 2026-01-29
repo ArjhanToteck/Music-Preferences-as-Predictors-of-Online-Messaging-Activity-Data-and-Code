@@ -6,10 +6,28 @@ from profanity_check import predict_prob as predict_profanity_prob
 from textblob import TextBlob
 from collections import Counter
 import pandas as pd
+import nltk
+from nltk.corpus import treebank
 
-vaderSentimentAnalyzer = SentimentIntensityAnalyzer()
+treeBankPosTags = None
+vaderSentimentAnalyzer = None
 
 def main():
+	# create sentiment analyzer
+	global vaderSentimentAnalyzer
+	vaderSentimentAnalyzer = SentimentIntensityAnalyzer()
+
+	# make sure the corpus is downloaded
+	nltk.download("treebank")
+
+	# flatten all sentences into list of (word, tag) pairs
+	nltkTaggedWords = [pair for sent in treebank.tagged_sents() for pair in sent]
+
+	# get all unique POS tags
+	global treeBankPosTags
+	treeBankPosTags = sorted(set(tag for (word, tag) in nltkTaggedWords))
+
+	# prepare message data
 	message_data = []
 
 	with open("data/users.json", "r") as file:
@@ -167,7 +185,10 @@ def get_textblob_data(message):
 	pos_counts = Counter(tag for _, tag in tags)
 
 	# get ratio for each part of speech
-	pos_ratios = {f"textblob_{pos}_ratio": count / word_count for pos, count in pos_counts.items()} if word_count else {}
+	pos_ratios = {
+		f"textblob_{pos}_ratio": pos_counts.get(pos, 0) / word_count if word_count else 0
+		for pos in treeBankPosTags
+	}
 
 	data |= pos_ratios
 
