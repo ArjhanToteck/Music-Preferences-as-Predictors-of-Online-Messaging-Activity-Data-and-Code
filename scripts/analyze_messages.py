@@ -7,12 +7,16 @@ from textblob import TextBlob
 from collections import Counter
 import pandas as pd
 
-vaderSentimentAnalyzer = SentimentIntensityAnalyzer()
+vaderSentimentAnalyzer = None
 
 def main():
+	# create sentiment analyzer
+	global vaderSentimentAnalyzer
+	vaderSentimentAnalyzer = SentimentIntensityAnalyzer()
+
+	# prepare message data
 	message_data = []
 
-	# TODO: use csv instead of json
 	with open("data/users.json", "r") as file:
 		servers = json.load(file)
 
@@ -25,13 +29,11 @@ def main():
 				messages = user["messages"]
 				user_data = analyze_user(messages)
 
-				# TODO: don't use id bc thats identifiable
 				user_data["id"] = id
 
 				message_data.append(user_data)
 
 	# save data to json
-	# TODO: use csv instead of json
 	with open("data/messages_data.json", "w", encoding="utf-8") as f:
 		json.dump(message_data, f, ensure_ascii=False, indent=2)
 
@@ -42,6 +44,9 @@ def analyze_user(messages):
 
 	df = pd.DataFrame(message_data)
 
+	# make sure no data counts as 0 (this is for the pos ngram ratios)
+	df = pd.DataFrame(message_data).fillna(0)
+
 	# get statistics for columns
 	stats = {
 		"message_count": len(messages)
@@ -49,21 +54,21 @@ def analyze_user(messages):
 	
 	for col_name, col in df.items():
 		if pd.api.types.is_numeric_dtype(col):
-			stats[col_name + "_q1"] = float(col.quantile(0.25))
+			std = col.std()
+			skew = col.std()
+
 			stats[col_name + "_median"] = float(col.median())
-			stats[col_name + "_q3"] = float(col.quantile(0.75))
 			stats[col_name + "_range"] = float(col.max() - col.min())
 			stats[col_name + "_iqr"] = float(col.quantile(0.75) - col.quantile(0.25))
-			stats[col_name + "_std_dev"] = float(col.std()) if not np.isnan(col.std()) else None
+			stats[col_name + "_std_dev"] = float(std) if not np.isnan(std) else None
 			stats[col_name + "_min"] = float(col.min())
 			stats[col_name + "_max"] = float(col.max())
 			stats[col_name + "_mean"] = float(col.mean())
-			stats[col_name + "_skewness"] = float(col.skew()) if not np.isnan(col.skew()) else None
+			stats[col_name + "_skewness"] = float(skew) if not np.isnan(skew) else None
 
 	return stats
 
 
-# TODO: add discord specific metrics like custom emojis, mentions, attachments, and links
 def analyze_message(message):
 	data = {}
 	
@@ -167,13 +172,40 @@ def get_textblob_data(message):
 		"textblob_subjectivity": message_blob.sentiment.subjectivity
 	}
 
-		# get counts for each part of speech
-	pos_counts = Counter(tag for _, tag in tags)
+	pos_sequence = [tag for _, tag in tags]
+
+	# get counts for each part of speech
+	pos_counts = Counter(pos_sequence)
 
 	# get ratio for each part of speech
-	pos_ratios = {f"textblob_{pos}_ratio": count / word_count for pos, count in pos_counts.items()} if word_count else {}
+	pos_ratios = {
+		f"textblob_{pos}_ratio": pos_counts.get(pos, 0) / word_count if word_count else 0
+		for pos, count in pos_counts.items()
+	}
 
 	data |= pos_ratios
+
+	# get bigrams
+	pos_bigrams = [(pos_sequence[i], pos_sequence[i+1]) for i in range(len(pos_sequence)-1)]
+	bigram_counts = Counter(pos_bigrams)
+
+	bigram_ratios = {
+		f"textblob_{t1}_{t2}_ratio": bigram_counts.get((t1, t2), 0) / len(pos_bigrams) if pos_bigrams else 0
+		for (t1, t2), count in bigram_counts.items()
+	}
+
+	data |= bigram_ratios
+
+	# get trigrams
+	pos_trigrams = [(pos_sequence[i], pos_sequence[i+1], pos_sequence[i+2]) for i in range(len(pos_sequence)-2)]
+	trigram_counts = Counter(pos_trigrams)
+
+	trigram_ratios = {
+		f"textblob_{t1}_{t2}_{t3}_ratio": trigram_counts.get((t1, t2, t3), 0) / len(pos_trigrams) if pos_trigrams else 0
+		for (t1, t2, t3), count in trigram_counts.items()
+	}
+
+	data |= trigram_ratios
 
 	return data
 

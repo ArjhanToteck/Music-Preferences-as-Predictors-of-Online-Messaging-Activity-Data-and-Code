@@ -53,7 +53,6 @@ def main():
 				spotify_url = user["spotifyUrl"]
 				user_data = get_user_data(spotifyApi, spotify_url)
 
-				# TODO: don't use id bc thats identifiable
 				user_data["has_spotify"] = 1
 				user_data["id"] = id
 
@@ -74,7 +73,6 @@ def main():
 					continue
 
 				spotify_data.append({
-				# TODO: don't use id bc thats identifiable
 					"has_spotify": 0,
 					"id": id
 				})
@@ -391,9 +389,7 @@ def get_distribution_from_df(df, properties):
 
 def get_distribution_from_col(col, prefix):
 	return {
-		prefix + "_q1": float(col.quantile(0.25)),
 		prefix + "_median": float(col.median()),
-		prefix + "_q3": float(col.quantile(0.75)),
 		prefix + "_range": float(col.max() - col.min()),
 		prefix + "_iqr": float(col.quantile(0.75) - col.quantile(0.25)),
 		prefix + "_std_dev": float(col.std()) if not np.isnan(col.std()) else None,
