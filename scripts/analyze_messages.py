@@ -10,6 +10,8 @@ import nltk
 from nltk.corpus import treebank
 
 treeBankPosTags = None
+treeBankBigrams = None
+treeBankTrigrams = None
 vaderSentimentAnalyzer = None
 
 def main():
@@ -26,6 +28,14 @@ def main():
 	# get all unique POS tags
 	global treeBankPosTags
 	treeBankPosTags = sorted(set(tag for (word, tag) in nltkTaggedWords))
+
+	# get all unique bigrams
+	global treeBankBigrams
+	treeBankBigrams = [(t1, t2) for t1 in treeBankPosTags for t2 in treeBankPosTags]
+
+	# get all unique trigrams
+	global treeBankTrigrams
+	treeBankTrigrams = [(t1, t2, t3) for t1 in treeBankPosTags for t2 in treeBankPosTags for t3 in treeBankPosTags]
 
 	# prepare message data
 	message_data = []
@@ -181,8 +191,10 @@ def get_textblob_data(message):
 		"textblob_subjectivity": message_blob.sentiment.subjectivity
 	}
 
-		# get counts for each part of speech
-	pos_counts = Counter(tag for _, tag in tags)
+	pos_sequence = [tag for _, tag in tags]
+
+	# get counts for each part of speech
+	pos_counts = Counter(pos_sequence)
 
 	# get ratio for each part of speech
 	pos_ratios = {
@@ -191,6 +203,28 @@ def get_textblob_data(message):
 	}
 
 	data |= pos_ratios
+
+	# get bigrams
+	pos_bigrams = [(pos_sequence[i], pos_sequence[i+1]) for i in range(len(pos_sequence)-1)]
+	bigram_counts = Counter(pos_bigrams)
+
+	bigram_ratios = {
+		f"textblob_{t1}_{t2}_ratio": bigram_counts.get((t1, t2), 0) / len(pos_bigrams) if pos_bigrams else 0
+		for t1, t2 in treeBankBigrams
+	}
+
+	data |= bigram_ratios
+
+	# get trigrams
+	pos_trigrams = [(pos_sequence[i], pos_sequence[i+1], pos_sequence[i+2]) for i in range(len(pos_sequence)-2)]
+	trigram_counts = Counter(pos_trigrams)
+
+	trigram_ratios = {
+		f"textblob_{t1}_{t2}_{t3}_ratio": trigram_counts.get((t1, t2, t3), 0) / len(pos_trigrams) if pos_trigrams else 0
+		for t1, t2, t3 in treeBankTrigrams
+	}
+
+	data |= trigram_ratios
 
 	return data
 
