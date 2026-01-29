@@ -21,6 +21,7 @@ For accurate reproducibility, it is important to install the following Python de
 - [nltk](https://www.nltk.org/), version 3.9.2
 - [numpy](https://numpy.org/), version  1.26.4
 - [pandas](https://pandas.pydata.org/), version 2.2.1
+- [python-dotenv](https://pypi.org/project/python-dotenv/), version 1.2.1
 - [scipy](https://scipy.org/), version 1.8.0
 - [seaborn](https://seaborn.pydata.org/), version 0.13.2
 - [spotipy](https://github.com/spotipy-dev/spotipy), version 2.25.1
