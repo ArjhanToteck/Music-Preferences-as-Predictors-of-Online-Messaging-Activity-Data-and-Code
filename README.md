@@ -1,5 +1,5 @@
 # Music Preferences As Predictors of Online Messaging Activity: Data and Code
-This is the repository for a research paper that explores the relationships between various variables relating to online music and messaging activity.
+This is the repository for a research paper that explores the relationships between various variables relating to online music and messaging activity. The paper can be found [here](https://arjhantoteck.vercel.app/projects/musicPreferencesArticle).
 
 This repository contains the Python scripts referenced in the methodology of the paper. The scripts are used to:
 
